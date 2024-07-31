@@ -2,7 +2,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 import time
 from io import BytesIO
 import pycurl
-from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import retry, retry_if_exception_type, retry_if_result, stop_after_attempt
 
 
 def close_browser(browser):
@@ -28,12 +28,21 @@ def get_response_urls(url):
     return response_urls
 
 
+def is_timeout(result):
+    return result is 'TIMEOUT'
+
+
+def return_last_value(retry_state):
+    return retry_state.outcome.result()
+
+
+@retry(retry=retry_if_result(is_timeout), stop=stop_after_attempt(3), retry_error_callback=return_last_value)
 def curl_ipv6_request(url):
     buffer = BytesIO()
     c = pycurl.Curl()
     c.setopt(pycurl.URL, url)
     c.setopt(pycurl.IPRESOLVE, pycurl.IPRESOLVE_V6)
-    c.setopt(pycurl.TIMEOUT, 20)
+    c.setopt(pycurl.TIMEOUT, 10)
     c.setopt(pycurl.SSL_VERIFYPEER, 0)
     c.setopt(pycurl.SSL_VERIFYHOST, 0)
     c.setopt(pycurl.WRITEDATA, buffer)
