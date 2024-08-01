@@ -29,7 +29,7 @@ def get_response_urls(url):
 
 
 def is_timeout(result):
-    return result is 'TIMEOUT'
+    return result == 'TIMEOUT'
 
 
 def return_last_value(retry_state):
