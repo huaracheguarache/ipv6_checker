@@ -16,54 +16,50 @@ browser = p.firefox.launch()
 context = browser.new_context(user_agent='Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0',
                               ignore_https_errors=True)
 
-municipality_netlocs = {}
+data = {}
 for municipality, url in zip(municipalities, urls):
     print(f'Getting {municipality}...', end='')
 
-    own_netlocs = dict()
+    own = []
     if 'www.' in url:
-        own_netlocs['netlocs'] = [url]
-        own_netlocs['ipv6_statuses'] = [curl_ipv6_request('https://' + url)]
-        own_netlocs['netlocs'].append(url.replace('www.', ''))
-        own_netlocs['ipv6_statuses'].append(curl_ipv6_request('https://'
-                                                              + url.replace('www.', '')))
+        own.append([url, curl_ipv6_request('https://' + url)])
+        own.append([url.replace('www.', ''), curl_ipv6_request('https://' + url.replace('www.', ''))])
     else:
-        own_netlocs['netlocs'] = ['www.' + url]
-        own_netlocs['ipv6_statuses'] = [curl_ipv6_request('https://www.' + url)]
-        own_netlocs['netlocs'].append(url)
-        own_netlocs['ipv6_statuses'].append(curl_ipv6_request('https://' + url))
+        own.append(['www.' + url, curl_ipv6_request('https://www.' + url)])
+        own.append([url, curl_ipv6_request('https://' + url)])
 
-    response_urls = load_page(context, 'https://' + url)
+    responses = load_page(context, 'https://' + url)
 
     netlocs = []
-    for response_url in response_urls:
-        netloc = urlparse(response_url).netloc
+    for response in responses:
+        netloc = urlparse(response).netloc
         # Avoid appending the netloc of municipality to tertiary netloc list.
-        if netloc and netloc not in own_netlocs['netlocs'][0]:
+        if netloc and netloc not in own[0][0]:
             netlocs.append(netloc)
 
     unique_netlocs = sorted(set(netlocs))
-    municipality_netlocs[str(municipality)] = dict(own_netlocs=own_netlocs, tertiary_netlocs=unique_netlocs)
+    data[str(municipality)] = dict(own=own, tertiary=unique_netlocs)
     print('Finished!')
 
 p.stop()
 
-full_netloc_collection = []
-for netloc_list in municipality_netlocs.values():
-    full_netloc_collection += netloc_list['tertiary_netlocs']
+tertiary = []
+for netloc_list in data.values():
+    tertiary += netloc_list['tertiary']
 
-unique_netlocs, counts = np.unique(np.array(full_netloc_collection), return_counts=True)
-sorted_index = np.argsort(unique_netlocs)
+unique_tertiary, counts = np.unique(np.array(tertiary), return_counts=True)
+sorted_index = np.argsort(unique_tertiary)
 
 ipv6_status = []
-for netloc in unique_netlocs:
+for netloc in unique_tertiary:
     ipv6_status.append(curl_ipv6_request('https://' + netloc))
 
-counts_and_ipv6 = dict(tertiary_netlocs=unique_netlocs[sorted_index].tolist(),
-                       counts=counts[sorted_index].tolist(),
-                       ipv6_statuses=np.array(ipv6_status)[sorted_index].tolist())
+tertiary_info = []
+for i in sorted_index:
+    tertiary_info.append([unique_tertiary[i], ipv6_status[i], int(counts[i])])
 
-data = dict(individual_municipalities=municipality_netlocs, counts_and_ipv6=counts_and_ipv6)
+data['tertiary_info'] = tertiary_info
+
 json_data = json.dumps(data, indent=4, ensure_ascii=False)
 
 with open('/output/data.json', 'w') as outfile:
