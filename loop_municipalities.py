@@ -1,7 +1,8 @@
 import numpy as np
-from tools import get_response_urls, curl_ipv6_request
+from tools import load_page, curl_ipv6_request
 from urllib.parse import urlparse
 import json
+from playwright.sync_api import sync_playwright
 
 municipalities, urls = np.loadtxt('/input/kommuner.csv',
                                   skiprows=1,
@@ -9,6 +10,11 @@ municipalities, urls = np.loadtxt('/input/kommuner.csv',
                                   delimiter=',',
                                   dtype='str',
                                   unpack=True)
+
+p = sync_playwright().start()
+browser = p.firefox.launch()
+context = browser.new_context(user_agent='Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0',
+                              ignore_https_errors=True)
 
 municipality_netlocs = {}
 for municipality, url in zip(municipalities, urls):
@@ -27,7 +33,7 @@ for municipality, url in zip(municipalities, urls):
         own_netlocs['netlocs'].append(url)
         own_netlocs['ipv6_statuses'].append(curl_ipv6_request('https://' + url))
 
-    response_urls = get_response_urls('https://' + url)
+    response_urls = load_page(context, 'https://' + url)
 
     netlocs = []
     for response_url in response_urls:
@@ -39,6 +45,8 @@ for municipality, url in zip(municipalities, urls):
     unique_netlocs = sorted(set(netlocs))
     municipality_netlocs[str(municipality)] = dict(own_netlocs=own_netlocs, tertiary_netlocs=unique_netlocs)
     print('Finished!')
+
+p.stop()
 
 full_netloc_collection = []
 for netloc_list in municipality_netlocs.values():
