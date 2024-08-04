@@ -1,29 +1,24 @@
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 import time
 from io import BytesIO
 import pycurl
 from tenacity import retry, retry_if_exception_type, retry_if_result, stop_after_attempt
 
 
-def close_browser(browser):
-    # Sleeping for 5 seconds to wait for additional requests.
-    time.sleep(5)
-    browser.close()
-
-
 @retry(retry=retry_if_exception_type(PlaywrightTimeoutError), stop=stop_after_attempt(3))
-def get_response_urls(url):
-    with sync_playwright() as p:
-        browser = p.firefox.launch()
-        context = browser.new_context(user_agent='Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101'
-                                                 ' Firefox/127.0',
-                                      ignore_https_errors=True)
-        page = context.new_page()
-
-        response_urls = []
-        page.on('response', lambda response: response_urls.append(response.url))
-        page.goto(url, timeout=25000)
-        page.on('load', close_browser(browser))
+def load_page(context, url):
+    page = context.new_page()
+    response_urls = []
+    page.on('response', lambda response: response_urls.append(response.url))
+    try:
+        page.goto(url, wait_until='load', timeout=25000)
+    except PlaywrightTimeoutError:
+        page.close()
+        raise PlaywrightTimeoutError
+    else:
+        # Wait 5 seconds for any additional resources to load before closing the page.
+        time.sleep(5)
+        page.close()
 
     return response_urls
 
