@@ -14,7 +14,7 @@ def load_page(context, url):
         page.goto(url, wait_until='load', timeout=25000)
     except PlaywrightTimeoutError:
         page.close()
-        raise PlaywrightTimeoutError
+        raise
     else:
         # Wait 5 seconds for any additional resources to load before closing the page.
         time.sleep(5)
