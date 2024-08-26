@@ -81,7 +81,7 @@ class TertiaryDomains:
                     for municipality, url in zip(self.failed_municipalities, self.failed_urls):
                         try:
                             print(f'Getting tertiary domains of {municipality}...', end='')
-                            responses = self._load_page(context, url)
+                            responses = self._load_page(context, 'https://' + url)
                         except RetryError:
                             print('Failed!')
                         else:
