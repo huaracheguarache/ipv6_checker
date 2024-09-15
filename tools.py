@@ -1,9 +1,10 @@
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import sync_playwright, Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
 import time
 from io import BytesIO
 import pycurl
 from tenacity import retry, retry_if_exception_type, retry_if_result, stop_after_attempt, RetryError
 from urllib.parse import urlparse
+from typing import Union
 
 
 class TertiaryDomains:
@@ -44,7 +45,7 @@ class TertiaryDomains:
 
         p.stop()
 
-    @retry(retry=retry_if_exception_type(PlaywrightTimeoutError), stop=stop_after_attempt(3))
+    @retry(retry=retry_if_exception_type(Union[PlaywrightError, PlaywrightTimeoutError]), stop=stop_after_attempt(3))
     def _load_page(self, context, url):
         page = context.new_page()
         response_urls = []
